@@ -8,7 +8,7 @@
     <title>Kasir Sembako</title>
     
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="icon" type="image/png" href="icon-192.png">
     
     <style>
         * {
@@ -55,10 +55,11 @@
         .menu-btn {
             background: rgba(255,255,255,0.2);
             border: none;
-            padding: 10px;
+            padding: 10px 14px;
             border-radius: 8px;
             cursor: pointer;
             color: white;
+            font-size: 18px;
         }
 
         .nav-menu {
@@ -86,6 +87,7 @@
         .nav-btn.active {
             background: white;
             color: #667eea;
+            font-weight: 600;
         }
 
         .content {
@@ -103,6 +105,10 @@
             border: 2px solid #e5e7eb;
             border-radius: 12px;
             font-size: 16px;
+            outline: none;
+        }
+        .search-input:focus {
+            border-color: #667eea;
         }
 
         .search-icon {
@@ -179,6 +185,7 @@
             font-size: 16px;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
         }
 
@@ -246,17 +253,9 @@
             color: white;
         }
 
-        .qty-minus {
-            background: #ef4444;
-        }
-
-        .qty-plus {
-            background: #10b981;
-        }
-
-        .qty-delete {
-            background: #6b7280;
-        }
+        .qty-minus { background: #ef4444; }
+        .qty-plus { background: #10b981; }
+        .qty-delete { background: #6b7280; }
 
         .qty-display {
             font-weight: bold;
@@ -287,8 +286,12 @@
             padding: 14px;
             border: 2px solid #e5e7eb;
             border-radius: 12px;
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 12px;
+            outline: none;
+        }
+        .payment-input:focus {
+            border-color: #667eea;
         }
 
         .pay-btn {
@@ -374,7 +377,7 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
         .empty-state {
@@ -387,18 +390,17 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" id="mainContainer">
         <div class="header">
             <div class="header-content">
-                <div class="title">
-                    🛒 Kasir Sembako
-                </div>
+                <div class="title" id="appTitle">🛒 Toko Sembako</div>
                 <button class="menu-btn" onclick="toggleMenu()">☰</button>
             </div>
             <div class="nav-menu" id="navMenu">
                 <button class="nav-btn active" onclick="switchTab('kasir')">💰 Kasir</button>
                 <button class="nav-btn" onclick="switchTab('produk')">📦 Kelola Produk</button>
                 <button class="nav-btn" onclick="switchTab('laporan')">📊 Laporan</button>
+                <button class="nav-btn" onclick="switchTab('settings')">⚙️ Pengaturan</button>
             </div>
         </div>
 
@@ -407,7 +409,7 @@
             <div id="kasirTab">
                 <div class="search-box">
                     <span class="search-icon">🔍</span>
-                    <input type="text" class="search-input" id="searchInput" placeholder="Cari produk..." onkeyup="searchProducts()">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Cari produk / barcode..." oninput="searchProducts()">
                 </div>
                 <div id="productList"></div>
                 <div id="cartContainer"></div>
@@ -422,8 +424,12 @@
             <!-- Tab Laporan -->
             <div id="laporanTab" class="hidden">
                 <div id="statsCard"></div>
-                <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 16px; color: #1f2937;">Riwayat Transaksi</h2>
                 <div id="transactionList"></div>
+            </div>
+
+            <!-- Tab Pengaturan -->
+            <div id="settingsTab" class="hidden">
+                <div id="settingsContainer"></div>
             </div>
         </div>
     </div>
