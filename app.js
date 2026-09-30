@@ -2,7 +2,7 @@
 let products = [
     { id: 1, name: 'Beras Medium 5kg', price: 65000, stock: 20, category: 'Sembako', barcode: '899123456001', minStock: 5, unit: 'sak' },
     { id: 2, name: 'Minyak Goreng 1L', price: 16000, stock: 15, category: 'Minyak', barcode: '899123456002', minStock: 4, unit: 'pouch' },
-    { id: 3, name: 'Gula Pasir 1kg', price: 17500, stock: 3, category: 'Sembako', barcode: '899123456003', minStock: 5, unit: 'kg' }
+    { id: 3, name: 'Sak Gula Pasir 50kg', price: 875000, stock: 5, category: 'Sembako', barcode: '899123456003', minStock: 2, unit: 'sak' }
 ];
 
 let cart = [];
@@ -17,13 +17,40 @@ let settings = {
     lowStockAlert: true
 };
 
-// Format tanggal lokal (YYYY-MM-DD)
+// ==========================================
+// FUNGSI KHUSUS FORMAT RUPIAH & ANGKA BESAR
+// ==========================================
+
+// Format angka ke format tampilan Rupiah (Pasti ada pemisah titik: 875.000)
+function formatRupiah(amount) {
+    const num = Math.round(Number(amount) || 0);
+    const formatted = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return 'Rp ' + formatted;
+}
+
+// Membersihkan input teks: hapus titik/koma/spasi agar tersimpan nilai murni (875.000 -> 875000)
+function parseRupiah(value) {
+    if (!value && value !== 0) return 0;
+    const cleanNumber = String(value).replace(/[^0-9]/g, '');
+    return parseInt(cleanNumber, 10) || 0;
+}
+
+// Memberikan format titik otomatis saat user mengetik di form
+function autoFormatRupiahInput(input) {
+    const val = parseRupiah(input.value);
+    input.value = val > 0 ? val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : '';
+}
+
+// Format tanggal ISO (YYYY-MM-DD)
 function getTodayDateString() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Load data dari localStorage
+// ==========================================
+// PENYIMPANAN LOCALSTORAGE
+// ==========================================
+
 function loadData() {
     const savedProducts = localStorage.getItem('kasir_products');
     const savedTransactions = localStorage.getItem('kasir_transactions');
@@ -31,14 +58,19 @@ function loadData() {
     const savedSettings = localStorage.getItem('kasir_settings');
     const savedUser = localStorage.getItem('kasir_current_user');
     
-    if (savedProducts) products = JSON.parse(savedProducts);
+    if (savedProducts) {
+        try {
+            products = JSON.parse(savedProducts);
+        } catch (e) {
+            console.error('Gagal membaca data produk:', e);
+        }
+    }
     if (savedTransactions) transactions = JSON.parse(savedTransactions);
     if (savedUsers) users = JSON.parse(savedUsers);
     if (savedSettings) settings = JSON.parse(savedSettings);
     if (savedUser) currentUser = JSON.parse(savedUser);
 }
 
-// Simpan data ke localStorage
 function saveData() {
     localStorage.setItem('kasir_products', JSON.stringify(products));
     localStorage.setItem('kasir_transactions', JSON.stringify(transactions));
@@ -49,12 +81,10 @@ function saveData() {
     }
 }
 
-// Format rupiah
-function formatRupiah(amount) {
-    return 'Rp ' + Number(amount || 0).toLocaleString('id-ID');
-}
+// ==========================================
+// AUTH & LOGIN
+// ==========================================
 
-// Check login
 function checkLogin() {
     if (!currentUser) {
         showLoginForm();
@@ -63,7 +93,6 @@ function checkLogin() {
     return true;
 }
 
-// Tampilkan form login
 function showLoginForm() {
     const container = document.getElementById('mainContainer');
     container.innerHTML = `
@@ -90,7 +119,6 @@ function showLoginForm() {
     `;
 }
 
-// Login
 function login() {
     const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
@@ -106,7 +134,6 @@ function login() {
     }
 }
 
-// Logout
 function logout() {
     if (confirm('Yakin ingin logout?')) {
         currentUser = null;
@@ -115,7 +142,6 @@ function logout() {
     }
 }
 
-// Show notification
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.style.cssText = `
@@ -131,7 +157,7 @@ function showNotification(message, type = 'info') {
         z-index: 9999;
         max-width: 90%;
         text-align: center;
-        font-weight: 500;
+        font-weight: 600;
     `;
     notification.textContent = message;
     document.body.appendChild(notification);
@@ -141,13 +167,11 @@ function showNotification(message, type = 'info') {
     }, 4000);
 }
 
-// Toggle menu bar
 function toggleMenu() {
     const menu = document.getElementById('navMenu');
     menu.classList.toggle('active');
 }
 
-// Switch Tab
 function switchTab(tab) {
     if (!checkLogin()) return;
 
@@ -165,7 +189,8 @@ function switchTab(tab) {
         btn.classList.toggle('active', tabs[index] === tab);
     });
     
-    document.getElementById('navMenu').classList.remove('active');
+    const navMenu = document.getElementById('navMenu');
+    if (navMenu) navMenu.classList.remove('active');
     
     if (tab === 'kasir') {
         checkLowStock();
@@ -180,10 +205,12 @@ function switchTab(tab) {
     }
 }
 
-// Alert stok tipis
+// ==========================================
+// KASIR & PENJUALAN
+// ==========================================
+
 function checkLowStock() {
     if (!settings.lowStockAlert) return;
-    
     const lowStockProducts = products.filter(p => p.stock <= p.minStock && p.stock > 0);
     if (lowStockProducts.length > 0) {
         const names = lowStockProducts.map(p => `${p.name} (${p.stock})`).join(', ');
@@ -191,7 +218,6 @@ function checkLowStock() {
     }
 }
 
-// Render list produk di kasir
 function renderProducts() {
     const searchInput = document.getElementById('searchInput');
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -236,7 +262,6 @@ function searchProducts() {
     renderProducts();
 }
 
-// Tambah ke keranjang
 function addToCart(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -260,7 +285,6 @@ function addToCart(productId) {
     renderCart();
 }
 
-// Diskon per produk
 function applyDiscount(productId) {
     const cartItem = cart.find(item => item.id === productId);
     if (!cartItem) return;
@@ -278,7 +302,6 @@ function applyDiscount(productId) {
     renderCart();
 }
 
-// Update kuantitas
 function updateQuantity(productId, change) {
     const cartItem = cart.find(item => item.id === productId);
     const product = products.find(p => p.id === productId);
@@ -298,22 +321,19 @@ function updateQuantity(productId, change) {
     renderCart();
 }
 
-// Hapus dari keranjang
 function removeFromCart(productId) {
     cart = cart.filter(item => item.id !== productId);
     renderCart();
 }
 
-// Hitung total bayar
 function getTotal() {
     return cart.reduce((sum, item) => {
-        const itemTotal = item.price * item.quantity;
+        const itemTotal = Number(item.price) * item.quantity;
         const discountAmount = itemTotal * ((item.discount || 0) / 100);
         return sum + (itemTotal - discountAmount);
     }, 0);
 }
 
-// Render keranjang
 function renderCart() {
     const cartContainer = document.getElementById('cartContainer');
     if (!cartContainer) return;
@@ -325,7 +345,7 @@ function renderCart() {
     
     const total = getTotal();
     const totalDiscount = cart.reduce((sum, item) => {
-        const itemTotal = item.price * item.quantity;
+        const itemTotal = Number(item.price) * item.quantity;
         return sum + (itemTotal * ((item.discount || 0) / 100));
     }, 0);
     
@@ -333,7 +353,7 @@ function renderCart() {
         <div class="cart-container">
             <div class="cart-title">🛒 Keranjang Belanja</div>
             ${cart.map(item => {
-                const itemTotal = item.price * item.quantity;
+                const itemTotal = Number(item.price) * item.quantity;
                 const discountAmount = itemTotal * ((item.discount || 0) / 100);
                 const finalPrice = itemTotal - discountAmount;
                 
@@ -366,18 +386,17 @@ function renderCart() {
                     <span>Total Bayar:</span>
                     <span class="total-amount">${formatRupiah(total)}</span>
                 </div>
-                <input type="number" class="payment-input" id="paymentInput" placeholder="Nominal Uang Diterima">
+                <input type="text" inputmode="numeric" class="payment-input" id="paymentInput" placeholder="Masukkan Jumlah Uang Bayar" oninput="autoFormatRupiahInput(this)">
                 <button class="pay-btn" onclick="processPayment()">💳 BAYAR</button>
             </div>
         </div>
     `;
 }
 
-// Print Struk
 function printReceipt(transaction) {
     const receiptWindow = window.open('', '_blank');
     if (!receiptWindow) {
-        alert('Gagal membuka jendela cetak, izinkan pop-up di browser Anda.');
+        alert('Gagal membuka struk. Harap izinkan jendela pop-up di browser Anda.');
         return;
     }
     
@@ -401,7 +420,7 @@ function printReceipt(transaction) {
             <div class="center">Kasir: ${transaction.cashier}</div>
             <hr>
             ${transaction.items.map(item => {
-                const itemTotal = item.price * item.quantity;
+                const itemTotal = Number(item.price) * item.quantity;
                 const discount = itemTotal * (item.discount || 0) / 100;
                 return `
                 <div class="item">
@@ -438,11 +457,10 @@ function printReceipt(transaction) {
     }, 500);
 }
 
-// Proses Pembayaran
 function processPayment() {
     const total = getTotal();
     const paymentInput = document.getElementById('paymentInput');
-    const payment = parseInt(paymentInput.value) || 0;
+    const payment = parseRupiah(paymentInput.value);
     
     if (cart.length === 0) {
         alert('Keranjang belanja masih kosong!');
@@ -456,7 +474,6 @@ function processPayment() {
     
     const change = payment - total;
     
-    // Potong stok
     cart.forEach(cartItem => {
         const product = products.find(p => p.id === cartItem.id);
         if (product) {
@@ -495,7 +512,10 @@ function processPayment() {
     renderCart();
 }
 
-// Form tambah produk
+// ==========================================
+// KELOLA PRODUK (INPUT & EDIT HARGA AMAN)
+// ==========================================
+
 function showAddProductForm() {
     const container = document.getElementById('productManagement');
     container.innerHTML = `
@@ -504,7 +524,7 @@ function showAddProductForm() {
             
             <div style="margin-bottom: 12px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Nama Produk *</label>
-                <input type="text" id="newProductName" class="payment-input" placeholder="Contoh: Terigu Segitiga Biru 1kg">
+                <input type="text" id="newProductName" class="payment-input" placeholder="Contoh: Sak Gula Pasir 50kg">
             </div>
             
             <div style="margin-bottom: 12px;">
@@ -514,31 +534,31 @@ function showAddProductForm() {
             
             <div style="margin-bottom: 12px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Barcode</label>
-                <input type="text" id="newProductBarcode" class="payment-input" placeholder="Opsional (Scan/Ketik)">
+                <input type="text" id="newProductBarcode" class="payment-input" placeholder="Scan atau ketik kode barcode">
             </div>
             
             <div style="margin-bottom: 12px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Harga (Rp) *</label>
-                <input type="number" id="newProductPrice" class="payment-input" placeholder="12000">
+                <input type="text" inputmode="numeric" id="newProductPrice" class="payment-input" placeholder="Contoh: 875000 atau 875.000" oninput="autoFormatRupiahInput(this)">
             </div>
             
             <div style="margin-bottom: 12px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Stok Awal *</label>
-                <input type="number" id="newProductStock" class="payment-input" placeholder="20">
+                <input type="number" id="newProductStock" class="payment-input" placeholder="10">
             </div>
             
             <div style="margin-bottom: 12px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Peringatan Stok Minimum *</label>
-                <input type="number" id="newProductMinStock" class="payment-input" value="5">
+                <input type="number" id="newProductMinStock" class="payment-input" value="2">
             </div>
             
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Satuan *</label>
                 <select id="newProductUnit" class="payment-input">
+                    <option value="sak">Sak</option>
                     <option value="pcs">Pcs</option>
                     <option value="kg">Kg</option>
                     <option value="liter">Liter</option>
-                    <option value="sak">Sak</option>
                     <option value="pak">Pak</option>
                     <option value="box">Box</option>
                     <option value="karton">Karton</option>
@@ -555,19 +575,18 @@ function showAddProductForm() {
     renderProductList();
 }
 
-// Simpan produk baru
 function saveNewProduct() {
     const name = document.getElementById('newProductName').value.trim();
     const category = document.getElementById('newProductCategory').value.trim();
     const barcode = document.getElementById('newProductBarcode').value.trim();
-    const price = parseInt(document.getElementById('newProductPrice').value) || 0;
-    const stock = parseInt(document.getElementById('newProductStock').value) || 0;
-    const minStock = parseInt(document.getElementById('newProductMinStock').value) || 5;
+    const price = parseRupiah(document.getElementById('newProductPrice').value);
+    const stock = parseInt(document.getElementById('newProductStock').value, 10) || 0;
+    const minStock = parseInt(document.getElementById('newProductMinStock').value, 10) || 1;
     const unit = document.getElementById('newProductUnit').value;
     
     if (!name) return alert('Nama produk wajib diisi!');
     if (price <= 0) return alert('Harga jual harus lebih dari 0!');
-    if (stock < 0) return alert('Stok tidak boleh bernilai minus!');
+    if (stock < 0) return alert('Stok tidak boleh minus!');
     
     const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
     
@@ -587,10 +606,12 @@ function saveNewProduct() {
     renderProductManagement();
 }
 
-// Form edit produk
 function showEditProductForm(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
+    
+    // Tampilkan harga yang sudah ada dengan pemisah titik
+    const formattedPrice = Math.round(Number(product.price) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     
     const container = document.getElementById('productManagement');
     container.innerHTML = `
@@ -614,7 +635,7 @@ function showEditProductForm(productId) {
             
             <div style="margin-bottom: 12px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Harga (Rp)</label>
-                <input type="number" id="editProductPrice" class="payment-input" value="${product.price}">
+                <input type="text" inputmode="numeric" id="editProductPrice" class="payment-input" value="${formattedPrice}" oninput="autoFormatRupiahInput(this)">
             </div>
             
             <div style="margin-bottom: 12px;">
@@ -630,10 +651,10 @@ function showEditProductForm(productId) {
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600;">Satuan</label>
                 <select id="editProductUnit" class="payment-input">
+                    <option value="sak" ${product.unit === 'sak' ? 'selected' : ''}>Sak</option>
                     <option value="pcs" ${product.unit === 'pcs' ? 'selected' : ''}>Pcs</option>
                     <option value="kg" ${product.unit === 'kg' ? 'selected' : ''}>Kg</option>
                     <option value="liter" ${product.unit === 'liter' ? 'selected' : ''}>Liter</option>
-                    <option value="sak" ${product.unit === 'sak' ? 'selected' : ''}>Sak</option>
                     <option value="pak" ${product.unit === 'pak' ? 'selected' : ''}>Pak</option>
                     <option value="box" ${product.unit === 'box' ? 'selected' : ''}>Box</option>
                     <option value="karton" ${product.unit === 'karton' ? 'selected' : ''}>Karton</option>
@@ -650,7 +671,6 @@ function showEditProductForm(productId) {
     renderProductList();
 }
 
-// Simpan update produk
 function updateProduct(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -658,9 +678,9 @@ function updateProduct(productId) {
     const name = document.getElementById('editProductName').value.trim();
     const category = document.getElementById('editProductCategory').value.trim();
     const barcode = document.getElementById('editProductBarcode').value.trim();
-    const price = parseInt(document.getElementById('editProductPrice').value) || 0;
-    const stock = parseInt(document.getElementById('editProductStock').value) || 0;
-    const minStock = parseInt(document.getElementById('editProductMinStock').value) || 5;
+    const price = parseRupiah(document.getElementById('editProductPrice').value);
+    const stock = parseInt(document.getElementById('editProductStock').value, 10) || 0;
+    const minStock = parseInt(document.getElementById('editProductMinStock').value, 10) || 1;
     const unit = document.getElementById('editProductUnit').value;
     
     if (!name) return alert('Nama produk wajib diisi!');
@@ -676,27 +696,24 @@ function updateProduct(productId) {
     product.unit = unit;
     
     saveData();
-    showNotification('Produk berhasil diupdate!', 'info');
+    showNotification('Produk berhasil diperbarui!', 'info');
     renderProductManagement();
 }
 
-// Hapus produk
 function deleteProduct(productId) {
     if (!confirm('Yakin ingin menghapus produk ini?')) return;
-    
     products = products.filter(p => p.id !== productId);
     saveData();
     showNotification('Produk berhasil dihapus!', 'info');
     renderProductManagement();
 }
 
-// List produk di Kelola Produk
 function renderProductList() {
     const container = document.getElementById('productListManagement');
     if (!container) return;
     
     if (products.length === 0) {
-        container.innerHTML = '<div class="empty-state">Belum ada master produk.</div>';
+        container.innerHTML = '<div class="empty-state">Belum ada daftar produk.</div>';
         return;
     }
     
@@ -707,7 +724,7 @@ function renderProductList() {
                 <div style="color: #6b7280; margin-top: 4px;">
                     ${product.category} | ${product.unit} ${product.barcode ? `| 📊 ${product.barcode}` : ''}
                 </div>
-                <div style="color: #667eea; font-weight: 600; margin-top: 4px;">${formatRupiah(product.price)}</div>
+                <div style="color: #667eea; font-weight: 700; font-size: 18px; margin-top: 4px;">${formatRupiah(product.price)}</div>
                 <div style="font-weight: bold; margin-top: 4px; color: ${product.stock > product.minStock ? '#059669' : '#dc2626'};">
                     Stok: ${product.stock} ${product.unit} ${product.stock <= product.minStock ? '⚠️ (Menipis)' : '✅'}
                     <span style="font-size: 12px; font-weight: normal; color: #6b7280;">(Min: ${product.minStock})</span>
@@ -735,7 +752,6 @@ function renderProductManagement() {
     renderProductList();
 }
 
-// Backup file JSON
 function exportData() {
     const data = {
         products,
@@ -755,7 +771,10 @@ function exportData() {
     showNotification('Backup berhasil diunduh!', 'info');
 }
 
-// Top produk
+// ==========================================
+// LAPORAN
+// ==========================================
+
 function getTopProducts(transactionList) {
     const productSales = {};
     
@@ -770,7 +789,7 @@ function getTopProducts(transactionList) {
                 };
             }
             productSales[item.name].quantity += item.quantity;
-            const itemTotal = item.price * item.quantity;
+            const itemTotal = Number(item.price) * item.quantity;
             const discount = itemTotal * (item.discount || 0) / 100;
             productSales[item.name].total += (itemTotal - discount);
         });
@@ -781,7 +800,6 @@ function getTopProducts(transactionList) {
         .slice(0, 5);
 }
 
-// Render Laporan
 function renderReport() {
     const todayStr = getTodayDateString();
     
@@ -874,7 +892,7 @@ function renderReport() {
             <div class="transaction-items">
                 ${transaction.items.map(item => `
                     <div class="transaction-item">
-                        • ${item.name} (${item.quantity} ${item.unit}) = ${formatRupiah(item.price * item.quantity)}
+                        • ${item.name} (${item.quantity} ${item.unit}) = ${formatRupiah(Number(item.price) * item.quantity)}
                         ${item.discount > 0 ? ` <span style="color: #10b981;">(Disc ${item.discount}%)</span>` : ''}
                     </div>
                 `).join('')}
@@ -895,7 +913,10 @@ function printReceiptFromId(transactionId) {
     if (t) printReceipt(t);
 }
 
-// Render Tab Pengaturan
+// ==========================================
+// PENGATURAN TOKO & USER
+// ==========================================
+
 function renderSettings() {
     const container = document.getElementById('settingsContainer');
     if (!container) return;
@@ -912,7 +933,7 @@ function renderSettings() {
             <div style="margin-bottom: 12px;">
                 <label style="display: flex; align-items: center; cursor: pointer;">
                     <input type="checkbox" id="lowStockAlert" ${settings.lowStockAlert ? 'checked' : ''} style="margin-right: 10px; width: 18px; height: 18px;">
-                    <span>Aktifkan Alert Stok Rendah</span>
+                    <span>Aktifkan Peringatan Stok Rendah</span>
                 </label>
             </div>
             
@@ -977,7 +998,6 @@ function renderSettings() {
     `;
 }
 
-// Simpan Pengaturan
 function saveSettings() {
     settings.storeName = document.getElementById('storeName').value.trim() || 'Toko Sembako';
     settings.lowStockAlert = document.getElementById('lowStockAlert').checked;
@@ -990,7 +1010,6 @@ function saveSettings() {
     showNotification('Pengaturan toko disimpan!', 'info');
 }
 
-// Tambah user baru
 function addUser() {
     const username = document.getElementById('newUsername').value.trim();
     const password = document.getElementById('newPassword').value;
@@ -1005,17 +1024,17 @@ function addUser() {
     renderSettings();
 }
 
-// Hapus user
 function deleteUser(username) {
     if (!confirm(`Yakin ingin menghapus user ${username}?`)) return;
-    
     users = users.filter(u => u.username !== username);
     saveData();
     showNotification('User berhasil dihapus!', 'info');
     renderSettings();
 }
 
-// Bootstrapping App
+// ==========================================
+// INISIALISASI
+// ==========================================
 loadData();
 
 if (!currentUser) {
